@@ -9,8 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.12",
+    "@ai-sdk/react": "^2.0.34",
     "@clerk/nextjs": "^6.31.9",
+    "@clerk/themes": "^2.4.17",
     "@clerk/types": "^4.84.1",
+    "@prisma/client": "^6.15.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -34,7 +38,8 @@
     "react-syntax-highlighter": "^15.6.6",
     "streamdown": "^1.2.0",
     "tailwind-merge": "^3.3.1",
-    "use-stick-to-bottom": "^1.1.1"
+    "use-stick-to-bottom": "^1.1.1",
+    "v0-sdk": "^0.10.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

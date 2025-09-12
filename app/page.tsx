@@ -1,107 +1,195 @@
-import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useRef, useEffect, Fragment } from "react";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Message, MessageContent } from "@/components/ai-elements/message";
+import { Response } from "@/components/ai-elements/response";
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputAttachments,
+  PromptInputAttachment,
+  PromptInputTextarea,
+  PromptInputToolbar,
+  PromptInputTools,
+  PromptInputActionMenu,
+  PromptInputActionMenuTrigger,
+  PromptInputActionMenuContent,
+  PromptInputActionAddAttachments,
+  PromptInputSubmit,
+  PromptInputModelSelect,
+  PromptInputModelSelectTrigger,
+  PromptInputModelSelectContent,
+  PromptInputModelSelectItem,
+  PromptInputModelSelectValue,
+  PromptInputButton,
+} from "@/components/ai-elements/prompt-input";
+import { GlobeIcon } from "lucide-react";
+
+interface StreamMessage {
+  id: string;
+  role: "user" | "assistant";
+  text?: string;
+  image?: string;
+}
+
+const models = [{ name: "Gemma 2B", value: "gemma:2b" }];
+
+const ChatBotDemo = () => {
+  const [messages, setMessages] = useState<StreamMessage[]>([]);
+  const [input, setInput] = useState<string>("");
+  const [model, setModel] = useState(models[0].value);
+  const [webSearch, setWebSearch] = useState(false);
+  const [status, setStatus] = useState<"idle" | "streaming" | "done">("idle");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim()) return;
+
+    // Add user message
+    const userMessage: StreamMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      text,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+
+    // Placeholder for streaming assistant response
+    const assistantId = Date.now().toString() + "-assistant";
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantId, role: "assistant", text: "" },
+    ]);
+    setStatus("streaming");
+
+    const eventSource = new EventSource(
+      `/api/generate?message=${encodeURIComponent(
+        text
+      )}&model=${model}&webSearch=${webSearch}`
+    );
+
+    eventSource.onmessage = (event) => {
+      if (event.data === "[DONE]") {
+        setStatus("done");
+        eventSource.close();
+        return;
+      }
+
+      try {
+        const chunk = JSON.parse(event.data);
+
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.id !== assistantId) return msg;
+
+            // Append text if exists
+            const updatedText = chunk.response
+              ? (msg.text || "") + chunk.response
+              : msg.text;
+
+            // Add image if exists
+            const updatedImage = chunk.image ? chunk.image : msg.image;
+
+            return { ...msg, text: updatedText, image: updatedImage };
+          })
+        );
+      } catch (err) {
+        console.error("Failed to parse SSE chunk:", err);
+      }
+    };
+
+    eventSource.onerror = () => eventSource.close();
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="">
-          <ThemeSwitcher />
-        </div>
+    <div className="max-w-4xl mx-auto h-screen p-6 flex flex-col">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 border rounded-xl bg-neutral-950 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
+      >
+        <Conversation className="h-full">
+          <ConversationContent>
+            {messages.map((message) => (
+              <Fragment key={message.id}>
+                <Message from={message.role}>
+                  <MessageContent>
+                    {message.text && <Response>{message.text}</Response>}
+                    {message.image && (
+                      <img
+                        src={message.image}
+                        alt="AI response"
+                        className="mt-2 rounded-lg border dark:border-gray-700 max-w-full"
+                      />
+                    )}
+                  </MessageContent>
+                </Message>
+              </Fragment>
+            ))}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      <PromptInput
+        onSubmit={() => handleSendMessage(input)}
+        className="mt-4"
+        globalDrop
+        multiple
+      >
+        <PromptInputBody>
+          <PromptInputTextarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your message..."
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+        </PromptInputBody>
+
+        <PromptInputToolbar>
+          <PromptInputTools>
+            <PromptInputModelSelect
+              value={model}
+              onValueChange={(value) => setModel(value)}
+            >
+              <PromptInputModelSelectTrigger>
+                <PromptInputModelSelectValue />
+              </PromptInputModelSelectTrigger>
+              <PromptInputModelSelectContent>
+                {models.map((m) => (
+                  <PromptInputModelSelectItem key={m.value} value={m.value}>
+                    {m.name}
+                  </PromptInputModelSelectItem>
+                ))}
+              </PromptInputModelSelectContent>
+            </PromptInputModelSelect>
+          </PromptInputTools>
+
+          <PromptInputSubmit
+            disabled={!input.trim() || status === "streaming"}
+            //@ts-ignore
+            status={
+              status === "streaming"
+                ? "streaming"
+                : status === "done"
+                ? "success"
+                : "idle"
+            }
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </PromptInputToolbar>
+      </PromptInput>
     </div>
   );
-}
+};
+
+export default ChatBotDemo;

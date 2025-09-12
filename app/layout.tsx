@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
-import { shadcn } from "@clerk/themes";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
-import { ClerkProvider } from "@clerk/nextjs";
 
 const manrope = Manrope({
   variable: "--font-sans",
@@ -23,22 +21,14 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${manrope.variable} antialiased`}>
-        <ClerkProvider
-          signInUrl="/sign-in"
-          signUpUrl="/sign-up"
-          afterSignInUrl="/dashboard"
-          afterSignUpUrl="/dashboard"
-          appearance={{ theme: shadcn }}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
         >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
-        </ClerkProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
